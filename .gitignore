@@ -1,0 +1,19 @@
+# Data
+data/
+*.csv
+*.zip
+
+# Secrets
+.env
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# OS/IDE
+.DS_Store
+.vscode/

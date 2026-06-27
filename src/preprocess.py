@@ -136,6 +136,7 @@ def preprocess(raw, category_sets: dict | None = None) -> pd.DataFrame:
 
     return df[FEATURE_ORDER]
 
+
 # === Schema Persistence (save with the model, load at inference) ===
 
 def save_schema(path, category_sets: dict | None = None) -> None:
@@ -154,5 +155,5 @@ def save_schema(path, category_sets: dict | None = None) -> None:
 
 def load_schema(path) -> dict:
     """Load the saved schema. Returns a dict with feature_order, category_sets, etc."""
-    
+
     return json.loads(Path(path).read_text())

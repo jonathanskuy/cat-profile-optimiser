@@ -76,7 +76,7 @@ The scan also surfaced findings on the connected GitHub account's web/domain sur
 
 These concern GitHub's platform surface and account configuration rather than the cat application, so they are out of scope. The app itself is deployed on Streamlit Cloud, whose platform manages HTTP headers and cookies.
 
-**Evidence:** _[add a screenshot of the Aikido dashboard filtered to the `cat-profile-optimiser` repo (showing the project-scope findings) to the repo, e.g. `docs/aikido-scan.png`.]_
+**Evidence:** ![Aikido Scan](docs/aikido-scan.png)
 
 ---
 

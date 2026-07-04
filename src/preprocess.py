@@ -141,17 +141,29 @@ def preprocess(raw, category_sets: dict | None = None) -> pd.DataFrame:
 
 def save_schema(path, category_sets: dict | None = None) -> None:
     """Persist the feature contract + category sets next to the model, so
-    inference reproduces training exactly without re-reading the label CSVs."""
+    inference reproduces training exactly without re-reading the label CSVs.
+    
+    The output path is validated to stay within the project directory, so
+    this can't be used to write outside the intended location.
+    """
 
     if category_sets is None:
         category_sets = load_category_sets()
+
+    # Resolve and confirm the path stays inside the project root
+    # (defends against path traversal if `path` ever came from an untrusted source)
+    project_root = _HERE.parent.resolve()
+    resolved = Path(path).resolve()
+    if not str(resolved).startswith(str(project_root)):
+        raise ValueError(f"Refusing to write schema outside project: {resolved}")
+
     schema = {
         "feature_order": FEATURE_ORDER,
         "categorical_features": CATEGORICAL_FEATURES,
         "category_sets": category_sets,
         "target": TARGET,
     }
-    Path(path).write_text(json.dumps(schema, indent=2))
+    resolved.write_text(json.dumps(schema, indent=2))
 
 def load_schema(path) -> dict:
     """Load the saved schema. Returns a dict with feature_order, category_sets, etc."""

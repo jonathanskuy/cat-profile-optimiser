@@ -16,6 +16,14 @@ import preprocess
 import model as model_mod
 import explain as explain_mod
 import plotly
+try:
+    import recommend as recommend_mod
+except ImportError:
+    recommend_mod = None
+try:
+    import llm as llm_mod
+except ImportError:
+    llm_mod = None
 
 
 # === Page Config ===
@@ -124,8 +132,13 @@ def build_cat_dict():
 
 # === Main Results Panel ===
 
+# When 'Analyse Listing' is clicked, store the cat so results persist across slider tweaks
 if submitted:
-    cat = build_cat_dict()
+    st.session_state["analyzed_cat"] = build_cat_dict()
+
+# Show results if we have an analysed cat (from this click OR a previous one)
+if "analyzed_cat" in st.session_state:
+    cat = st.session_state["analyzed_cat"]
 
     features = preprocess.preprocess(cat, category_sets=schema["category_sets"])
     score = float(model_mod.predict_score(clf, features)[0])
@@ -174,10 +187,87 @@ if submitted:
         yaxis_title=None,
         showlegend=False,
     )
-    fig.add_vline(x=0, line_width=1, line_color="gray")  # center line at zero
+    fig.add_vline(x=0, line_width=1, line_color="gray")
 
     st.plotly_chart(fig, use_container_width=True)
     st.caption("🔴 Holding the Score Back   |   🟢 Helping the Score")
 
+
+    # === Recommendations ===
+
+    st.subheader("How to Improve this Listing")
+
+    if recommend_mod is not None:
+        try:
+            recs = recommend_mod.recommend(factors)
+            if recs:
+                for r in recs:
+                    st.markdown(f"**{r.get('priority', '•')}.** {r['text']}")
+            else:
+                st.caption("No specific improvements identified, this listing is in good shape.")
+        except Exception as e:
+            st.caption(f"Recommendations unavailable ({type(e).__name__}).")
+    else:
+        st.info("Recommendations module coming soon | this is where actionable tips will appear "
+                "(e.g. add more photos, expand the description, confirm vaccination status).")
+    
+
+    # === AI-improved description ===
+
+    st.subheader("Improved Description")
+
+    original_desc = cat["Description"].strip()
+
+    if llm_mod is not None:
+        if not original_desc:
+            st.caption("Add a description in the sidebar to get an AI-improved version.")
+        else:
+            with st.spinner("Rewriting the description..."):
+                try:
+                    improved = llm_mod.rewrite_description(cat, original_desc)
+                    col_orig, col_new = st.columns(2)
+                    with col_orig:
+                        st.markdown("**Original**")
+                        st.write(original_desc)
+                    with col_new:
+                        st.markdown("**AI-Improved**")
+                        st.write(improved)
+                except Exception as e:
+                    st.caption(f"Rewrite unavailable ({type(e).__name__}).")
+    else:
+        st.info("Description rewriting coming soon | this is where an AI-improved, "
+                   "warmer version of the listing text will appear.")
+    
+
+    # === What-If (improve the listing and re-score) ===
+
+    st.divider()
+    st.subheader("What if You Improved the Listing?")
+    st.caption("Adjust the fields below to see how the score could change.")
+
+    col_a, col_b = st.columns(2)
+    with col_a:
+        new_photos = st.slider("Number of Photos", 0, 12,
+                               value=int(cat["PhotoAmt"]))
+    with col_b:
+        new_desc_words = st.slider("Description Length (words)", 0, 250,
+                                   value=len(str(cat["Description"]).split()))
+
+    # Build a modified cat listing (same as original but with the what-if values)
+    # The description length is simulated by padding to the target word count,
+    # since preprocess derives desc_word_count from the text
+    whatif_cat = dict(cat)
+    whatif_cat["PhotoAmt"] = new_photos
+    whatif_cat["Description"] = " ".join(["word"] * new_desc_words)  # length-only proxy
+
+    whatif_features = preprocess.preprocess(whatif_cat, category_sets=schema["category_sets"])
+    whatif_score = float(model_mod.predict_score(clf, whatif_features)[0])
+    delta = whatif_score - score
+
+    m1, m2 = st.columns(2)
+    m1.metric("Current score", f"{score:.0f} / 100")
+    m2.metric("Improved score", f"{whatif_score:.0f} / 100", delta=f"{delta:+.0f}")
+    st.progress(whatif_score / 100)
+
 else:
-    st.info("Enter a cat's details in the sidebar and click **Analyze listing** to see its adoption score.")
+    st.info("Enter a cat's details in the sidebar and click **Analyze listing** to see its adoption score.") 

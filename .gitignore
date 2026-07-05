@@ -1,7 +1,10 @@
 # Data
-data/
-*.csv
-*.zip
+data/*
+!data/raw/
+data/raw/*
+!data/raw/BreedLabels.csv
+!data/raw/ColorLabels.csv
+!data/raw/StateLabels.csv
 
 # Secrets
 .env

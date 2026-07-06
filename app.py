@@ -85,6 +85,16 @@ HEALTH = {"Healthy": 1, "Minor injury": 2, "Serious injury": 3}
 with st.sidebar:
     st.header("Cat Details")
 
+    # Quick-demo button: loads and analyses the example cat in one click
+    if st.button("Load example cat", use_container_width=True):
+        st.session_state["analysed_cat"] = {
+            "Age": 5, "Breed1": 265, "Color1": 1,
+            "MaturitySize": 2, "FurLength": 2,
+            "Vaccinated": 3, "Dewormed": 3, "Sterilized": 3,
+            "Health": 1, "Fee": 0, "PhotoAmt": 1,
+            "Description": "Very friendly yet shy cat",
+        }
+
     with st.form("cat_form"):
         age = st.number_input("Age (months)", min_value=0, max_value=300, value=12)
 
@@ -134,11 +144,11 @@ def build_cat_dict():
 
 # When 'Analyse Listing' is clicked, store the cat so results persist across slider tweaks
 if submitted:
-    st.session_state["analyzed_cat"] = build_cat_dict()
+    st.session_state["analysed_cat"] = build_cat_dict()
 
 # Show results if we have an analysed cat (from this click OR a previous one)
-if "analyzed_cat" in st.session_state:
-    cat = st.session_state["analyzed_cat"]
+if "analysed_cat" in st.session_state:
+    cat = st.session_state["analysed_cat"]
 
     features = preprocess.preprocess(cat, category_sets=schema["category_sets"])
     score = float(model_mod.predict_score(clf, features)[0])
@@ -270,4 +280,4 @@ if "analyzed_cat" in st.session_state:
     st.progress(whatif_score / 100)
 
 else:
-    st.info("Enter a cat's details in the sidebar and click **Analyze listing** to see its adoption score.") 
+    st.info("Enter a cat's details in the sidebar and click **Analyse listing** to see its adoption score.") 

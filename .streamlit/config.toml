@@ -1,7 +1,7 @@
 [theme]
-base = "dark"
-primaryColor = "#6f6127"
-backgroundColor = "#7c8354"
-secondaryBackgroundColor = "#A39253"
-textColor = "#D6E3E6"
+base = "light"
+primaryColor = "#E07856"           # warm terracotta — buttons, progress, accents
+backgroundColor = "#fbebdb"        # soft warm cream
+secondaryBackgroundColor = "#decab7"  # slightly deeper cream — sidebar/inputs
+textColor = "#3D2E28"              # warm dark brown, high contrast
 font = "sans serif"

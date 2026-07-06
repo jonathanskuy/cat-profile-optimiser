@@ -1,6 +1,6 @@
 # Security
 
-Security practices for Cat Profile Optimizer, covering secure coding, responsible data handling, dependency hygiene, and the Aikido scan report.
+Security practices for Cat Profile Optimiser, covering secure coding, responsible data handling, dependency hygiene, and the Aikido scan report.
 
 > This document maps to the hackathon's Security criterion (15%) and feeds Documentation (10%). Sections 1–4 reflect the project as built; §5 (Aikido results) is filled in after running the scan.
 
@@ -82,4 +82,4 @@ These concern GitHub's platform surface and account configuration rather than th
 
 ## Summary
 
-Cat Profile Optimizer uses a public dataset for training only, persists no user input (cat details live in session state for the session and are never stored), and keeps its single secret, the LLM API key, out of the repo via `.env`/Streamlit secrets, verified with `git ls-files`. Dependencies are pinned and hand-picked to a minimal set. An Aikido scan found **no critical or high issues and no secrets** in the project code; the one project-code finding (a theoretical path-traversal in `save_schema`) was **fixed with a verified path-validation guard** (the residual static-analysis flag was reviewed and accepted, since the scanner can't trace the runtime guard) two dependency advisories were reviewed and accepted as non-applicable, and the remaining scanner output concerned the GitHub account's web surface rather than the application and is out of scope.
+Cat Profile Optimiser uses a public dataset for training only, persists no user input (cat details live in session state for the session and are never stored), and keeps its single secret, the LLM API key, out of the repo via `.env`/Streamlit secrets, verified with `git ls-files`. Dependencies are pinned and hand-picked to a minimal set. An Aikido scan found **no critical or high issues and no secrets** in the project code; the one project-code finding (a theoretical path-traversal in `save_schema`) was **fixed with a verified path-validation guard** (the residual static-analysis flag was reviewed and accepted, since the scanner can't trace the runtime guard) two dependency advisories were reviewed and accepted as non-applicable, and the remaining scanner output concerned the GitHub account's web surface rather than the application and is out of scope.

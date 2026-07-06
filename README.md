@@ -1,4 +1,4 @@
-# Cat Adoption Profile Optimizer
+# Cat Adoption Profile Optimiser
 
 > Help shelters and cat owners write better adoption listings so cats get adopted faster.
 
@@ -6,7 +6,7 @@ Built for the **HackTheKitty** hackathon (June 24 - July 7, 2026).
 
 A user enters a cat's details and instantly gets an **adoption-success score (0–100)**, a **SHAP explanation** of what's driving that score, **actionable recommendations** to improve the listing, an **AI-rewritten description**, and a **live "what-if" re-score** showing how the score changes as the listing improves.
 
-**Live demo:** _[Streamlit Cloud link - add once deployed]_
+**Live demo:** [Streamlit Cloud Link](https://cat-profile-optimiser.streamlit.app)
 **Demo video:** _[link - add before submission]_
 
 ---
@@ -127,7 +127,7 @@ cat-profile-optimiser/
 ├── app.py                  # Streamlit entry point
 ├── src/
 │   ├── preprocess.py       # shared feature engineering (train + inference)
-│   ├── model.py            # train, predict (0–100 score), save/load
+│   ├── model.py            # train, predict (0-100 score), save/load
 │   ├── explain.py          # SHAP wrapper (per-cat + global importance)
 │   ├── recommend.py        # SHAP → recommendations
 │   └── llm.py              # description rewriting
@@ -135,20 +135,21 @@ cat-profile-optimiser/
 ├── data/raw/               # committed: small label CSVs only (train.csv gitignored)
 ├── notebooks/              # EDA + modelling
 ├── fixtures/               # mock data for developing/testing modules
-├── tests/                  # unit tests
-├── docs/                   # supporting docs, screenshots (e.g. Aikido scan)
-├── requirements.txt
-├── SECURITY.md
-├── .gitignore
-└── README.md
-└── LICENSE
+├── tests/                  # unit tests (pytest)
+├── documentation/          # project report + security report
+│   ├── SECURITY.md
+│   └── CatProfileOptimiserProjectReport.docx
+├── requirements.txt        # runtime dependencies (deployed app)
+├── requirements-dev.txt    # dev/training dependencies
+├── README.md
+└── .gitignore
 ```
 
 ---
 
 ## Model & Evaluation
 
-The target is binarized from PetFinder's `AdoptionSpeed`: **"adopted within a month" (speed 0–2) vs "slower / not adopted" (3–4)**, a naturally balanced split (~57% / 43%).
+The target is binarised from PetFinder's `AdoptionSpeed`: **"adopted within a month" (speed 0–2) vs "slower / not adopted" (3–4)**, a naturally balanced split (~57% / 43%).
 
 | Metric | Value |
 |---|---|
@@ -163,19 +164,25 @@ Adoption speed is inherently noisy (it depends on factors the data can't see, li
 
 ## Security
 
-See [`SECURITY.md`](./SECURITY.md) | responsible data handling, secrets management, secure coding practices, dependency hygiene, and the Aikido scan report (findings triaged and resolved).
+See [`documentation/SECURITY.md`](./documentation/SECURITY.md) | responsible data handling, secrets management, secure coding practices, dependency hygiene, and the Aikido scan report (findings triaged and resolved).
 
 ---
 
 ## Testing
 
-See `tests/` for unit tests covering the ML engine (preprocessing shape/skew, scoring range, explanation contract) and a manual test matrix in the project report. _[Update once tests are written.]_
+The project has **15 unit tests** (pytest) covering the ML engine — the train/inference consistency guarantee, derived features and edge cases, score range and determinism, the model save/load round-trip, the SHAP explanation contract, and a regression test for the security fix. A full test matrix (automated + manual UI checks) is in the [project report](./documentation/CatProfileOptimiserProjectReport.docx).
+
+Run the tests with:
+
+​```bash
+python -m pytest tests/
+​```
 
 ---
 
 ## Limitations & Honest Notes
 
-- The score reflects patterns in one dataset (PetFinder.my, primarily Malaysia) and may not generalize to all shelters/regions.
+- The score reflects patterns in one dataset (PetFinder.my, primarily Malaysia) and may not generalise to all shelters/regions.
 - It estimates listing quality, not an individual cat's adoptability.
 - The model deliberately excludes anything a shelter can't act on from its recommendations (age, breed, etc. explain the score but never generate advice).
 - `desc_word_count` and `Breed1`/`Color1` importance may be slightly inflated as high-cardinality features; since breed/color are contextual (never recommended on), this doesn't affect the advice given.
@@ -193,5 +200,5 @@ This project is licensed under the MIT License (see the [`LICENSE`](./LICENSE) f
 
 ## Acknowledgements
 
-- PetFinder.my and the Kaggle competition organizers for the dataset
-- HackTheKitty organizers
+- PetFinder.my and the Kaggle competition organisers for the dataset
+- HackTheKitty organisers

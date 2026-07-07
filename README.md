@@ -36,7 +36,7 @@ Cats with poorly constructed adoption listings (missing details, weak descriptio
 - **Explainability:** SHAP (TreeExplainer)
 - **Experiment tracking:** MLflow (training only)
 - **Frontend:** Streamlit, Plotly (charts)
-- **LLM:** _[Anthropic / OpenAI (specify), used by the description-rewrite module]_
+- **LLM:** Gemini
 - **Data:** PetFinder.my Adoption Prediction (Kaggle), scoped to cats
 - **Version control:** Git / GitHub
 - **Security scanning:** Aikido

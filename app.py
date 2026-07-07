@@ -19,6 +19,7 @@ import traceback
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent / "src"))
 
+import json
 import requests
 import pandas as pd
 import streamlit as st
@@ -169,6 +170,14 @@ def rewrite_description(cat: dict, original_desc: str) -> str:
     prompt = build_gemini_prompt(cat, original_desc)
     return call_gemini_api(prompt, api_url, api_key)
 
+@st.cache_data(show_spinner=False)
+def cached_rewrite_description(cat_key: str, original_desc: str) -> str:
+    """Cache wrapper: only calls Gemini once per unique cat+description.
+    cat_key is a stable string built from the cat's attributes."""
+    import json
+    cat = json.loads(cat_key)
+    return rewrite_description(cat, original_desc)
+
 
 def build_gemini_recommendations_prompt(cat: dict, factors: list, rule_based_hints: list = None) -> str:
     """
@@ -253,6 +262,14 @@ def generate_ai_recommendations(cat: dict, factors: list, rule_based_hints: list
     api_key = get_gemini_api_key()
     prompt = build_gemini_recommendations_prompt(cat, factors, rule_based_hints)
     return call_gemini_api(prompt, api_url, api_key)
+
+@st.cache_data(show_spinner=False)
+def cached_ai_recommendations(cat_key: str, factors_key: str) -> str:
+    """Cache wrapper: only calls Gemini once per unique cat+factors."""
+    import json
+    cat = json.loads(cat_key)
+    factors = json.loads(factors_key)
+    return generate_ai_recommendations(cat, factors, None)
 
 
 # === Cached Loaders (run once, reused across interactions) ===
@@ -435,7 +452,9 @@ if "analysed_cat" in st.session_state:
 
     with st.spinner("Generating personalized suggestions..."):
         try:
-            ai_recs = generate_ai_recommendations(cat, factors, rule_based_hints)
+            cat_key = json.dumps(cat, sort_keys=True, default=str)
+            factors_key = json.dumps(factors, sort_keys=True, default=str)
+            ai_recs = cached_ai_recommendations(cat_key, factors_key)
             st.markdown(ai_recs)
         except RuntimeError as e:
             # Raised by get_gemini_api_key() when GEMINI_API_KEY isn't set,
@@ -458,7 +477,8 @@ if "analysed_cat" in st.session_state:
     else:
         with st.spinner("Rewriting the description..."):
             try:
-                improved = rewrite_description(cat, original_desc)
+                cat_key = json.dumps(cat, sort_keys=True, default=str)
+                improved = cached_rewrite_description(cat_key, original_desc)
                 col_orig, col_new = st.columns(2)
                 with col_orig:
                     st.markdown("**Original**")

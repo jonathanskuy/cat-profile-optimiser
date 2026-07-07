@@ -6,8 +6,8 @@ Built for the **HackTheKitty** hackathon (June 24 - July 7, 2026).
 
 A user enters a cat's details and instantly gets an **adoption-success score (0–100)**, a **SHAP explanation** of what's driving that score, **actionable recommendations** to improve the listing, an **AI-rewritten description**, and a **live "what-if" re-score** showing how the score changes as the listing improves.
 
-**Live demo:** [Streamlit Cloud Link](https://cat-profile-optimiser.streamlit.app)
-**Demo video:** _[link - add before submission]_
+**Live Demo:** [Streamlit Cloud Link](https://cat-profile-optimiser.streamlit.app)
+**Demo Video:** [Demo Video Link](https://drive.google.com/drive/folders/1REfxH_ZzXyebd5QBODNBOOSu_HmXPOcD?usp=sharing)
 
 ---
 
@@ -36,7 +36,7 @@ Cats with poorly constructed adoption listings (missing details, weak descriptio
 - **Explainability:** SHAP (TreeExplainer)
 - **Experiment tracking:** MLflow (training only)
 - **Frontend:** Streamlit, Plotly (charts)
-- **LLM:** Gemini
+- **LLM:** Google Gemini (via Google AI Studio free API)
 - **Data:** PetFinder.my Adoption Prediction (Kaggle), scoped to cats
 - **Version control:** Git / GitHub
 - **Security scanning:** Aikido
@@ -99,7 +99,7 @@ streamlit run app.py
 
 The app opens at `http://localhost:8501`. Enter a cat's details in the sidebar and click **Analyse listing**.
 
-> **LLM key note (for judges):** the app is fully functional without an LLM key (every feature except the description rewrite works). To test the rewrite, supply a free/limited key in `.env` as above. _[Specify the provider and where to get a free key.]_
+> **LLM key note (for judges):** The app is fully functional without an LLM key — the score, explanation, recommendations, and what-if re-score all work. Only the AI description rewrite needs a key. To enable it, get a free API key from [Google AI Studio](https://aistudio.google.com/apikey) and add it to a `.env` file in the project root as `LLM_API_KEY=your_key_here` (locally), or via the Secrets settings if running on Streamlit Cloud. The free tier is sufficient for testing.
 
 ---
 

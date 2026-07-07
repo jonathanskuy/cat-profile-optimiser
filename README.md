@@ -209,4 +209,4 @@ This project is licensed under the MIT License (see the [`LICENSE`](./LICENSE) f
 
 ## Credits
 
-**Demo video music:** "Life of Riley" by Kevin MacLeod (incompetech.com), licensed under [Creative Commons: By Attribution 4.0](http://creativecommons.org/licenses/by/4.0/).
+**Demo Video Music:** "Life of Riley" by Kevin MacLeod (incompetech.com), licensed under [Creative Commons: By Attribution 4.0](http://creativecommons.org/licenses/by/4.0/).

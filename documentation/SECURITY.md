@@ -50,7 +50,7 @@ The repository was connected to [Aikido](https://www.aikido.dev/) and scanned (S
 | Critical findings | 0 |
 | High findings | 0 |
 | Secrets detected | 0 |
-| Medium findings (project code) | 1 - fixed (see below) |
+| Medium findings (project code) | 2 - fixed/reviewed (see below) |
 | Dependency advisories | 2 - reviewed, auto-ignored as non-applicable |
 
 ### Project-code findings & resolutions
@@ -64,6 +64,10 @@ The repository was connected to [Aikido](https://www.aikido.dev/) and scanned (S
 
 3. **`streamlit` | potential SSRF (Medium, dependency advisory).**
    *Resolution:* **Reviewed, accepted.** Auto-ignored by Aikido. The app makes no server-side requests to user-controlled URLs, so the advisory doesn't apply to how Streamlit is used here.
+
+4. **`app.py` — potential SSRF in the Gemini API call (Medium, SAST).**
+   Aikido flagged the outbound HTTP request in `call_gemini_api()`, where the request URL is built from a variable.
+   *Resolution:* **Reviewed, accepted.** The request URL is the hardcoded Google Gemini API endpoint (or an operator-set `GEMINI_API_URL` environment variable) — it is never derived from user input, so there is no user-controlled path to the request and SSRF is not exploitable. Marked accepted in Aikido with this justification.
 
 ### Account-surface findings (out of scope for this project)
 

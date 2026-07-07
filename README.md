@@ -37,7 +37,7 @@ Cats with poorly constructed adoption listings (missing details, weak descriptio
 - **Explainability:** SHAP (TreeExplainer)
 - **Experiment tracking:** MLflow (training only)
 - **Frontend:** Streamlit, Plotly (charts)
-- **LLM:** Google Gemini (via Google AI Studio free API)
+- **LLM:** Google Gemini API (gemini-2.5-flash, via Google AI Studio) (powers the AI recommendations and description rewrite)
 - **Data:** PetFinder.my Adoption Prediction (Kaggle), scoped to cats
 - **Version control:** Git / GitHub
 - **Security scanning:** Aikido
@@ -50,19 +50,19 @@ Cats with poorly constructed adoption listings (missing details, weak descriptio
 User (browser)
    │
    ▼
-Streamlit app (app.py) UI + orchestration
+Streamlit app (app.py) — UI + orchestration + Gemini AI features
    │
    ├─► preprocess.py ─► XGBoost model (model.py) ─► adoption score (0–100)
    │                              │
    │                              ▼
    │                       explain.py (SHAP) ─► per-listing factor breakdown
    │
-   ├─► recommend.py ─► SHAP-driven, threshold-aware recommendations
+   ├─► Gemini API ─► AI recommendations (grounded by SHAP factors)
    │
-   └─► llm.py ─► AI-rewritten description (uses only provided facts)
+   └─► Gemini API ─► AI-rewritten description (uses only provided facts)
 ```
 
-The ML engine (`preprocess`, `model`, `explain`) is separated from the UI and from the "intelligence layer" (`recommend`, `llm`). Training happens offline; the app loads a saved model + schema at startup and never trains at runtime. A single `preprocess()` path is shared by training and inference, so there is no train/inference skew.
+The ML engine (`preprocess`, `model`, `explain`) is separated from the UI. Training happens offline; the app loads a saved model + schema at startup and never trains at runtime. A single `preprocess()` path is shared by training and inference, so there is no train/inference skew. The AI features (recommendations and description rewrite) call Google's Gemini API directly from the app, grounded by the SHAP factors so the advice reflects what's actually driving each cat's score.
 
 ---
 
@@ -88,11 +88,12 @@ conda activate catopt
 # 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. (Only for the AI-rewrite feature) provide an LLM API key
-#    Create a .env file in the project root:
-#        LLM_API_KEY=your_key_here
-#    The app runs fully without this.
-#    The score, explanation, recommendations, and what-if re-score all work. Only the description-rewrite needs a key.
+# 4. (For the AI features) set your Gemini API key as an environment variable.
+#    Get a free key at https://aistudio.google.com/apikey
+#    macOS/Linux:        export GEMINI_API_KEY="your-key-here"
+#    Windows PowerShell:  $env:GEMINI_API_KEY="your-key-here"
+#    The app runs fully without this — the score, explanation, and what-if
+#    re-score all work. Only the AI recommendations and rewrite need the key.
 
 # 5. Run the app
 streamlit run app.py
@@ -100,7 +101,11 @@ streamlit run app.py
 
 The app opens at `http://localhost:8501`. Enter a cat's details in the sidebar and click **Analyse listing**.
 
-> **LLM key note (for judges):** The app is fully functional without an LLM key — the score, explanation, recommendations, and what-if re-score all work. Only the AI description rewrite needs a key. To enable it, get a free API key from [Google AI Studio](https://aistudio.google.com/apikey) and add it to a `.env` file in the project root as `LLM_API_KEY=your_key_here` (locally), or via the Secrets settings if running on Streamlit Cloud. The free tier is sufficient for testing.
+> **AI features key note (for judges):** The app is fully functional without a key — the score, explanation, and what-if re-score all work. The AI recommendations and description rewrite use Google's Gemini API. To enable them, get a free key from [Google AI Studio](https://aistudio.google.com/apikey) and set it as an environment variable in your terminal before running the app:
+> - **macOS/Linux:** `export GEMINI_API_KEY="your-key-here"`
+> - **Windows PowerShell:** `$env:GEMINI_API_KEY="your-key-here"`
+>
+> On Streamlit Cloud, add `GEMINI_API_KEY` via the app's Secrets settings. The free tier is sufficient for testing.
 
 ---
 
@@ -125,17 +130,15 @@ The trained model is committed, so this is only needed to reproduce training fro
 
 ```
 cat-profile-optimiser/
-├── app.py                  # Streamlit entry point
+├── app.py                  # Streamlit app: UI, orchestration, Gemini AI features
 ├── src/
 │   ├── preprocess.py       # shared feature engineering (train + inference)
 │   ├── model.py            # train, predict (0-100 score), save/load
-│   ├── explain.py          # SHAP wrapper (per-cat + global importance)
-│   ├── recommend.py        # SHAP → recommendations
-│   └── llm.py              # description rewriting
+│   └── explain.py          # SHAP wrapper (per-cat + global importance)
 ├── models/                 # committed: trained model + feature schema
 ├── data/raw/               # committed: small label CSVs only (train.csv gitignored)
 ├── notebooks/              # EDA + modelling
-├── fixtures/               # mock data for developing/testing modules
+├── fixtures/               # mock data used in development/testing
 ├── tests/                  # unit tests (pytest)
 ├── documentation/          # project report + security report
 │   ├── SECURITY.md
@@ -193,7 +196,7 @@ python -m pytest tests/
 ## Team
 
 - **Marcellinus Jonathan Evanda Indarto** | data, model, SHAP, app, security, deployment
-- **Felix Colin Lianto** | recommendations engine, LLM description rewriting
+- **Felix Colin Lianto** | recommendations engine, LLM description rewriting, demo video
 
 ## License
 

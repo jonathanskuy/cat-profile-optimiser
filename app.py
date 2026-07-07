@@ -3,27 +3,34 @@ app.py (Cat Adoption Profile Optimizer (Streamlit)).
 
 Wires the ML engine (preprocess, model, explain) into a UI:
   cat attributes -> adoption score -> SHAP explanation -> recommendations
-  -> AI-rewritten description -> before/after re-score.
+  -> AI-rewritten description (Gemini API, built directly into this file)
+  -> before/after re-score.
+
+Before running, set your Gemini API key in the terminal:
+    export GEMINI_API_KEY="your-key-here"   (macOS/Linux)
+    $env:GEMINI_API_KEY="your-key-here"     (Windows PowerShell)
+Then:
+    streamlit run app.py
 """
 
-
+import os
 import sys
+import traceback
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent / "src"))
+
+import requests
 import pandas as pd
 import streamlit as st
 import preprocess
 import model as model_mod
 import explain as explain_mod
 import plotly
+
 try:
     import recommend as recommend_mod
 except ImportError:
     recommend_mod = None
-try:
-    import llm as llm_mod
-except ImportError:
-    llm_mod = None
 
 
 # === Page Config ===
@@ -41,12 +48,219 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+# === Gemini API (built directly into this file) ===
+
+MATURITY_MAP = {1: "Small", 2: "Medium", 3: "Large", 4: "Extra Large"}
+FUR_MAP = {1: "Short", 2: "Medium", 3: "Long"}
+YES_NO_MAP = {1: "Yes", 2: "No", 3: "Not sure"}
+HEALTH_MAP = {1: "Healthy", 2: "Minor injury", 3: "Serious injury"}
+
+
+def get_gemini_api_key() -> str:
+    """
+    Read the Gemini API key from the environment. Never hardcode the key
+    in source. Set it in your terminal before running `streamlit run app.py`:
+
+        export GEMINI_API_KEY="your-key-here"
+
+    See README.md for full instructions.
+    """
+    key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError(
+            "GEMINI_API_KEY is not set. Set it in your terminal before "
+            "running the app, e.g.:\n"
+            '  export GEMINI_API_KEY="your-key-here"   (macOS/Linux)\n'
+            '  $env:GEMINI_API_KEY="your-key-here"      (Windows PowerShell)\n'
+            "See README.md for details."
+        )
+    return key
+
+
+def build_gemini_prompt(cat: dict, original_desc: str) -> str:
+    """Construct a prompt asking Gemini to rewrite an existing description."""
+    maturity = MATURITY_MAP.get(cat.get("MaturitySize"), str(cat.get("MaturitySize")))
+    fur = FUR_MAP.get(cat.get("FurLength"), str(cat.get("FurLength")))
+    vaccinated = YES_NO_MAP.get(cat.get("Vaccinated"), str(cat.get("Vaccinated")))
+    dewormed = YES_NO_MAP.get(cat.get("Dewormed"), str(cat.get("Dewormed")))
+    sterilized = YES_NO_MAP.get(cat.get("Sterilized"), str(cat.get("Sterilized")))
+    health = HEALTH_MAP.get(cat.get("Health"), str(cat.get("Health")))
+
+    return (
+        "Rewrite the following cat adoption listing description to be warmer, "
+        "more engaging, and more likely to attract adopters, while staying "
+        "truthful to the facts given.\n\n"
+        f"Original description: \"{original_desc}\"\n\n"
+        "Cat facts to stay consistent with:\n"
+        f"- Age: {cat.get('Age')} months\n"
+        f"- Size: {maturity}\n"
+        f"- Fur length: {fur}\n"
+        f"- Vaccinated: {vaccinated}\n"
+        f"- Dewormed: {dewormed}\n"
+        f"- Sterilized: {sterilized}\n"
+        f"- Health: {health}\n"
+        f"- Adoption fee: ${cat.get('Fee')}\n\n"
+        "Return only the rewritten description, no preamble or labels."
+    )
+
+
+def call_gemini_api(prompt: str, api_url: str, api_key: str) -> str:
+    """Call the Gemini API and return generated text."""
+    url = f"{api_url}?key={api_key}"
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.7,
+            "topK": 40,
+            "topP": 0.9,
+            "maxOutputTokens": 2048,
+        },
+    }
+    response = requests.post(url, headers=headers, json=payload, timeout=30)
+    response.raise_for_status()
+    result = response.json()
+
+    # Defensive: the API is expected to return a JSON object, but guard against
+    # any unexpected top-level shape (e.g. a list, or None on an empty body)
+    # so a malformed response raises a clear RuntimeError instead of an
+    # AttributeError/TypeError from blindly calling .get()/["..."] on it.
+    if not isinstance(result, dict):
+        raise RuntimeError(f"Unexpected Gemini response shape (not an object): {str(result)[:300]}")
+
+    # If the prompt itself was blocked (safety filters etc.), surface that clearly
+    # rather than falling through to the generic "unexpected shape" error below.
+    prompt_feedback = result.get("promptFeedback")
+    if isinstance(prompt_feedback, dict) and prompt_feedback.get("blockReason"):
+        raise RuntimeError(
+            f"Gemini blocked the prompt (blockReason={prompt_feedback['blockReason']})."
+        )
+
+    candidates = result.get("candidates")
+    if isinstance(candidates, list) and len(candidates) > 0:
+        candidate = candidates[0] or {}
+        # NOTE: when Gemini blocks/truncates a response (safety filter, RECITATION,
+        # or hitting maxOutputTokens before producing text), "content" can be present
+        # but explicitly null, e.g. {"content": null, "finishReason": "SAFETY"}.
+        # candidate.get("content", {}) only applies its default when the key is
+        # *missing*, not when it's null, so a bare ".get(...)" chain here raises
+        # AttributeError: 'NoneType' object has no attribute 'get'. Guard with `or {}`.
+        content = candidate.get("content") or {}
+        parts = content.get("parts") or []
+        text = "".join((p or {}).get("text", "") for p in parts).strip()
+        if text:
+            return text
+        finish_reason = candidate.get("finishReason", "UNKNOWN")
+        safety = candidate.get("safetyRatings")
+        detail = f" safetyRatings={safety}" if safety else ""
+        raise RuntimeError(f"Gemini returned no text (finishReason={finish_reason}).{detail}")
+
+    raise RuntimeError(f"Unexpected Gemini response shape: {str(result)[:300]}")
+
+
+def rewrite_description(cat: dict, original_desc: str) -> str:
+    """Rewrite a cat's listing description using the Gemini API."""
+    model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    api_url = os.getenv(
+        "GEMINI_API_URL",
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent",
+    )
+    api_key = get_gemini_api_key()
+    prompt = build_gemini_prompt(cat, original_desc)
+    return call_gemini_api(prompt, api_url, api_key)
+
+
+def build_gemini_recommendations_prompt(cat: dict, factors: list, rule_based_hints: list = None) -> str:
+    """
+    Construct a prompt asking Gemini for practical, condition-aware advice
+    on making the listing more appealing (e.g. flagging that the cat isn't
+    yet vaccinated/sterilized and suggesting how to handle that in the listing),
+    informed by which SHAP factors are currently hurting the predicted score,
+    and grounded by any rule-based hints from the local recommend module.
+    """
+    maturity = MATURITY_MAP.get(cat.get("MaturitySize"), str(cat.get("MaturitySize")))
+    fur = FUR_MAP.get(cat.get("FurLength"), str(cat.get("FurLength")))
+    vaccinated = YES_NO_MAP.get(cat.get("Vaccinated"), str(cat.get("Vaccinated")))
+    dewormed = YES_NO_MAP.get(cat.get("Dewormed"), str(cat.get("Dewormed")))
+    sterilized = YES_NO_MAP.get(cat.get("Sterilized"), str(cat.get("Sterilized")))
+    health = HEALTH_MAP.get(cat.get("Health"), str(cat.get("Health")))
+
+    # Surface only the factors currently dragging the score down, worst first,
+    # so the advice stays grounded in what's actually hurting this listing.
+    negative_factors = sorted(
+        (f for f in factors if f.get("impact", 0) < 0),
+        key=lambda f: f["impact"],
+    )[:5]
+    if negative_factors:
+        factors_text = "\n".join(f"- {f['label']} ({f['impact']:+.1f} pts)" for f in negative_factors)
+    else:
+        factors_text = "- No significant negative factors identified."
+
+    # Fold the local rule-based engine's output in as grounding signals.
+    # These are hints for Gemini to build on/rewrite/prioritize, not a
+    # separate list to be shown verbatim. Accepts either plain strings or
+    # dicts with a "text" key, so it degrades gracefully if recommend_mod's
+    # return shape doesn't match what's expected.
+    hints_text = "- (none available)"
+    if rule_based_hints:
+        lines = []
+        for h in rule_based_hints:
+            if isinstance(h, dict):
+                lines.append(str(h.get("text", h)))
+            else:
+                lines.append(str(h))
+        if lines:
+            hints_text = "\n".join(f"- {line}" for line in lines)
+
+    return (
+        "You are advising a foster/shelter volunteer on how to make a cat "
+        "adoption listing more appealing to potential adopters, given the "
+        "cat's current condition. Suggest 3-5 concrete, practical steps. "
+        "Where vaccination, deworming, or sterilization status is unconfirmed "
+        "('Not sure'), recommend CONFIRMING and clearly STATING the status in "
+        "the listing — do NOT advise changing a cat's medical status (e.g. do "
+        "not tell them to get the cat sterilized), as that may be inappropriate "
+        "for the cat's age and is not the listing's problem to solve. Also address "
+        "fee, photos, and description quality. "
+        "Use the rule-based signals below as a starting point and grounding "
+        "context, but rewrite them in your own words, prioritize what matters "
+        "most, and expand with anything else relevant. Do not just restate "
+        "them verbatim, and do not invent facts not given below.\n\n"
+        "Cat's current condition:\n"
+        f"- Age: {cat.get('Age')} months\n"
+        f"- Size: {maturity}\n"
+        f"- Fur length: {fur}\n"
+        f"- Vaccinated: {vaccinated}\n"
+        f"- Dewormed: {dewormed}\n"
+        f"- Sterilized: {sterilized}\n"
+        f"- Health: {health}\n"
+        f"- Adoption fee: ${cat.get('Fee')}\n"
+        f"- Number of photos: {cat.get('PhotoAmt')}\n\n"
+        f"Rule-based signals (from internal scoring engine):\n{hints_text}\n\n"
+        f"Factors currently hurting the predicted adoption score:\n{factors_text}\n\n"
+        "Return only a markdown bullet list of recommendations, no preamble or labels."
+    )
+
+
+def generate_ai_recommendations(cat: dict, factors: list, rule_based_hints: list = None) -> str:
+    """Generate personalized, condition-aware listing recommendations via Gemini,
+    grounded by the local rule-based recommend module when available."""
+    model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    api_url = os.getenv(
+        "GEMINI_API_URL",
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent",
+    )
+    api_key = get_gemini_api_key()
+    prompt = build_gemini_recommendations_prompt(cat, factors, rule_based_hints)
+    return call_gemini_api(prompt, api_url, api_key)
+
+
 # === Cached Loaders (run once, reused across interactions) ===
 
 @st.cache_resource
 def load_engine():
     """Load model, schema, explainer once. Cached for the app's lifetime."""
-    
+
     clf = model_mod.load_model()
     schema = preprocess.load_schema(model_mod.SCHEMA_PATH)
     explainer = explain_mod.build_explainer(clf)
@@ -123,7 +337,7 @@ with st.sidebar:
 
 def build_cat_dict():
     """Convert form inputs into the raw dict preprocess() expects."""
-    
+
     return {
         "Age": age,
         "Breed1": breed_name_to_id[breed_name],
@@ -203,51 +417,64 @@ if "analysed_cat" in st.session_state:
     st.caption("🔴 Holding the Score Back   |   🟢 Helping the Score")
 
 
-    # === Recommendations ===
+    # === Recommendations (single section, powered by Gemini, grounded by
+    # the local rule-based recommend module when it's available) ===
 
     st.subheader("How to Improve this Listing")
 
+    # Gather rule-based hints first. These feed INTO the Gemini prompt as
+    # grounding context rather than being displayed on their own — so if
+    # recommend_mod is missing or throws, we just fall back to factors-only
+    # grounding instead of showing a dead-end "unavailable" message.
+    rule_based_hints = []
     if recommend_mod is not None:
         try:
-            recs = recommend_mod.recommend(factors)
-            if recs:
-                for r in recs:
-                    st.markdown(f"**{r.get('priority', '•')}.** {r['text']}")
-            else:
-                st.caption("No specific improvements identified, this listing is in good shape.")
-        except Exception as e:
-            st.caption(f"Recommendations unavailable ({type(e).__name__}).")
-    else:
-        st.info("Recommendations module coming soon | this is where actionable tips will appear "
-                "(e.g. add more photos, expand the description, confirm vaccination status).")
-    
+            rule_based_hints = recommend_mod.recommend(factors) or []
+        except Exception:
+            rule_based_hints = []
 
-    # === AI-improved description ===
+    with st.spinner("Generating personalized suggestions..."):
+        try:
+            ai_recs = generate_ai_recommendations(cat, factors, rule_based_hints)
+            st.markdown(ai_recs)
+        except RuntimeError as e:
+            # Raised by get_gemini_api_key() when GEMINI_API_KEY isn't set,
+            # or by call_gemini_api() when Gemini blocks/returns no usable text.
+            st.error(str(e))
+        except Exception as e:
+            st.caption(f"Recommendations unavailable ({type(e).__name__}: {e}).")
+            with st.expander("Show error details"):
+                st.code(traceback.format_exc())
+
+
+    # === AI-improved description (Gemini, called directly from this file) ===
 
     st.subheader("Improved Description")
 
     original_desc = cat["Description"].strip()
 
-    if llm_mod is not None:
-        if not original_desc:
-            st.caption("Add a description in the sidebar to get an AI-improved version.")
-        else:
-            with st.spinner("Rewriting the description..."):
-                try:
-                    improved = llm_mod.rewrite_description(cat, original_desc)
-                    col_orig, col_new = st.columns(2)
-                    with col_orig:
-                        st.markdown("**Original**")
-                        st.write(original_desc)
-                    with col_new:
-                        st.markdown("**AI-Improved**")
-                        st.write(improved)
-                except Exception as e:
-                    st.caption(f"Rewrite unavailable ({type(e).__name__}).")
+    if not original_desc:
+        st.caption("Add a description in the sidebar to get an AI-improved version.")
     else:
-        st.info("Description rewriting coming soon | this is where an AI-improved, "
-                   "warmer version of the listing text will appear.")
-    
+        with st.spinner("Rewriting the description..."):
+            try:
+                improved = rewrite_description(cat, original_desc)
+                col_orig, col_new = st.columns(2)
+                with col_orig:
+                    st.markdown("**Original**")
+                    st.write(original_desc)
+                with col_new:
+                    st.markdown("**AI-Improved**")
+                    st.write(improved)
+            except RuntimeError as e:
+                # Raised by get_gemini_api_key() when GEMINI_API_KEY isn't set,
+                # or by call_gemini_api() when Gemini blocks/returns no usable text.
+                st.error(str(e))
+            except Exception as e:
+                st.caption(f"Rewrite unavailable ({type(e).__name__}: {e}).")
+                with st.expander("Show error details"):
+                    st.code(traceback.format_exc())
+
 
     # === What-If (improve the listing and re-score) ===
 
@@ -280,4 +507,4 @@ if "analysed_cat" in st.session_state:
     st.progress(whatif_score / 100)
 
 else:
-    st.info("Enter a cat's details in the sidebar and click **Analyse listing** to see its adoption score.") 
+    st.info("Enter a cat's details in the sidebar and click **Analyse listing** to see its adoption score.")

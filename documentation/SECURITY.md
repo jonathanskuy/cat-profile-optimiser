@@ -11,7 +11,7 @@ Security practices for Cat Profile Optimiser, covering secure coding, responsibl
 - **Dataset.** We use the [PetFinder.my Adoption Prediction](https://www.kaggle.com/competitions/petfinder-adoption-prediction) dataset, publicly available for the Kaggle competition, for model training only. Scope: cats only (`Type == 2`), single-cat listings, ~4,943 records.
 - **No dataset in the repo.** Raw data is excluded via `.gitignore` (`data/`) and not committed or redistributed. Users download it themselves from Kaggle. Only the small breed/color/state label CSVs are needed at runtime (for dropdown display). The large `train.csv` and images are training-only.
 - **No user input is persisted.** Cat attributes entered into the app are processed in-memory to produce a score and explanation; nothing is logged, stored, or written to disk. The app holds the current cat in Streamlit session state for the session only.
-- **LLM calls (description-rewrite feature).** When a user requests a rewrite, the cat's supplied attributes and original description are sent to the configured LLM provider. No personal data about the *user* is collected or sent, only the listing content they entered. _[Once the provider is chosen, note it and its data-retention terms here.]_
+- **LLM calls (description-rewrite feature).** When a user requests a rewrite, the cat's supplied attributes and original description are sent to Google's Gemini API (via Google AI Studio). No personal data about the *user* is collected or sent (only the listing content they entered). Users of the free-tier API should note that Google may use free-tier API data to improve its products (per Google AI Studio's terms). No user-identifying information is included in requests, only cat listing details.
 - **No photo upload implemented.** The photo-quality stretch feature was not built, so no images are uploaded, processed, or stored.
 
 ## 2. Secrets management
@@ -76,7 +76,7 @@ The scan also surfaced findings on the connected GitHub account's web/domain sur
 
 These concern GitHub's platform surface and account configuration rather than the cat application, so they are out of scope. The app itself is deployed on Streamlit Cloud, whose platform manages HTTP headers and cookies.
 
-**Evidence:** ![Aikido Scan](docs/aikido-scan.png)
+**Evidence:** ![Aikido Scan](aikido-scan.png)
 
 ---
 

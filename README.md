@@ -206,3 +206,7 @@ This project is licensed under the MIT License (see the [`LICENSE`](./LICENSE) f
 
 - PetFinder.my and the Kaggle competition organisers for the dataset
 - HackTheKitty organisers
+
+## Credits
+
+**Demo video music:** "Life of Riley" by Kevin MacLeod (incompetech.com), licensed under [Creative Commons: By Attribution 4.0](http://creativecommons.org/licenses/by/4.0/).

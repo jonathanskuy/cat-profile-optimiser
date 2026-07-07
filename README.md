@@ -7,6 +7,7 @@ Built for the **HackTheKitty** hackathon (June 24 - July 7, 2026).
 A user enters a cat's details and instantly gets an **adoption-success score (0–100)**, a **SHAP explanation** of what's driving that score, **actionable recommendations** to improve the listing, an **AI-rewritten description**, and a **live "what-if" re-score** showing how the score changes as the listing improves.
 
 **Live Demo:** [Streamlit Cloud Link](https://cat-profile-optimiser.streamlit.app)
+
 **Demo Video:** [Demo Video Link](https://drive.google.com/drive/folders/1REfxH_ZzXyebd5QBODNBOOSu_HmXPOcD?usp=sharing)
 
 ---

@@ -8,7 +8,7 @@ A user enters a cat's details and instantly gets an **adoption-success score (0â
 
 **Live Demo:** [Streamlit Cloud Link](https://cat-profile-optimiser.streamlit.app)
 
-**Demo Video:** [Demo Video Link](https://drive.google.com/drive/folders/1REfxH_ZzXyebd5QBODNBOOSu_HmXPOcD?usp=sharing)
+**Demo Video:** [Demo Video Link](https://drive.google.com/drive/folders/1REfxH_ZzXyebd5QBODNBOOSu_HmXPOcD?usp=sharing) (See Credits at the End of the README)
 
 ---
 
